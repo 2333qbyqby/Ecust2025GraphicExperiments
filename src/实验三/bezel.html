@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js贝塞尔显示</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <!-- Three.js渲染的输出将显示在这里 -->
+        <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.181.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.181.0/examples/jsm/"
+            }
+        }
+        </script>
+    <script type="module" src="./bezel.js"></script>
+    <!-- three.js-based 2D Bezier implementation and UI -->
+    <script type="module" src="./bezel_implement.js"></script>
+</body>
+</html>
