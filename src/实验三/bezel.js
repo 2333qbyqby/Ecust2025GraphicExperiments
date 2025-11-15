@@ -167,16 +167,7 @@
   // Export to global
   global.Bezier = Bezier;
 
-  // ------------------ 外部扩展 API（供 three.js 层继承） ------------------
-  // 算法模式: 'bernstein' | 'decasteljau'（此处内部统一用 Bernstein；De Casteljau 由学生在实现文件中扩展）
-  let __bezierAlgorithm = 'bernstein';
-
-  function setBezierAlgorithm(mode) {
-    const m = String(mode || '').toLowerCase();
-    if (m === 'bernstein' || m === 'decasteljau') __bezierAlgorithm = m;
-    return __bezierAlgorithm;
-  }
-
+  // ------------------ 外部扩展 API（供 上层调用） ------------------
   // 根据当前算法模式求点（基础库默认使用 Bernstein；De Casteljau 由实现文件覆盖提供）
   function evalPoint(points, t) {
     return bernsteinPoint(points, t);
@@ -217,12 +208,10 @@
 
   // Aggregate under a single namespace
   const BezelAPI = {
-    setBezierAlgorithm,
     drawPolygonalLine,
     drawBezierCurve,
     sampleBezier,
     evalPoint,
-    get algorithm() { return __bezierAlgorithm; },
   };
 
   global.BezelAPI = BezelAPI;
