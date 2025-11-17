@@ -1,14 +1,14 @@
 /* bezel.js（基础库）
- * 仅提供“基础版”Bezier曲线数学与采样功能，不包含实验中的交互与拼接逻辑。
+ * 仅提供“基础版” Bézier 曲线数学与采样功能，不包含交互与多段拼接逻辑。
  * 功能：
- *   - De Casteljau 任意次数点求值
- *   - Bezier 类：点采样、长度近似、求导、子曲线拆分
+ *   - Bernstein 多项式定义的 Bézier 点求值（任意次数）
+ *   - Bezier 类：点采样、长度近似、求导、子曲线拆分（de Casteljau 三角形）
  *   - 基础绘制辅助（由外部 three.js 或 canvas 使用）
- *   - 基础 API（BezelAPI）供扩展文件 bezel_implement.js 继承与覆盖
+ *   - 基础 API（BezelAPI）供实现文件 bezel_implement.js 扩展与覆盖
  * 基础 drawBezierCurve 行为：
- *   - 控制点数 <4：采样 (n-1) 次Bezier（n为控制点数）
- *   - 控制点数 ≥4：只取前4点生成一段三次Bezier
- * 说明：多段三次Bezier拼接（n 段需要 3n+1 个控制点）、G1 连续性处理、UI 按钮、橡皮筋交互等均属于实验要求，需要在 bezel_implement.js 中“学生实现”。
+ *   - 控制点数 <4：采样 (n-1) 次 Bézier（n 为控制点数）
+ *   - 控制点数 ≥4：只取前 4 点生成一段三次 Bézier
+ * 说明：多段三次 Bézier 拼接（n 段需要 3n+1 个控制点）、G1 连续性、UI 交互、B 样条等均在 bezel_implement.js 中实现。
  */
 (function (global) {
   'use strict';
@@ -18,25 +18,28 @@
     return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
   }
 
+  // Bézier 定义（Bernstein 多项式）：
+  // P(t) = Σ_{i=0..n} B_{i,n}(t) P_i，其中 B_{i,n}(t)=C(n,i) t^i (1-t)^{n-i}，t∈[0,1]
+  // 这里用递推系数计算 C(n,i) 以避免阶乘与溢出。
   function bernsteinPoint(points, t) {
-  const n = points.length - 1;
-  if (n < 0) return { x: 0, y: 0 };
-  t = Math.max(0, Math.min(1, t));
-  let x = 0, y = 0;
-  // 迭代计算二项式系数：C(n,0)=1; C(n,i)=C(n,i-1)*(n-i+1)/i
-  let coeff = 1; // C(n,0)
-  const invT = 1 - t;
+    const n = points.length - 1;
+    if (n < 0) return { x: 0, y: 0 };
+    t = Math.max(0, Math.min(1, t));
+    let x = 0, y = 0;
+    // 迭代计算二项式系数：C(n,0)=1; C(n,i+1)=C(n,i)*(n-i)/(i+1)
+    let coeff = 1; // C(n,0)
+    const invT = 1 - t;
     for (let i = 0; i <= n; i++) {
       const basis = coeff * Math.pow(t, i) * Math.pow(invT, n - i);
       x += points[i].x * basis;
       y += points[i].y * basis;
-      // 更新到下一个系数 C(n,i+1)
       coeff = coeff * (n - i) / (i + 1);
     }
     return { x, y };
   }
 
-  // 派生一阶导数的控制点集合（用于切向量）
+  // Bézier 一阶导数：P'(t) = n Σ_{i=0..n-1} (P_{i+1}-P_i) B_{i,n-1}(t)
+  // 等价为“导数曲线”的控制点集合：D_i = n(P_{i+1}-P_i)
   function derivativeControlPoints(points) {
     const n = points.length - 1;
     const d = [];
@@ -92,10 +95,10 @@
       return L;
     }
 
-  // 子曲线拆分：在 t 处分割，返回左右两段新 Bezier
+  // 子曲线拆分（de Casteljau 三角形）：在 t 处分割，返回左右两段新 Bezier
     subdivide(t) {
       t = Math.max(0, Math.min(1, t));
-      // Build the de Casteljau triangle and collect left/right boundary points
+      // 构造 de Casteljau 三角形，并收集左右边界作为子曲线的控制点
       const n = this.points.length;
       const triangle = [];
       triangle.push(this.points.map(p => ({ x: p.x, y: p.y })));
@@ -168,10 +171,7 @@
   global.Bezier = Bezier;
 
   // ------------------ 外部扩展 API（供 上层调用） ------------------
-  // 根据当前算法模式求点（基础库默认使用 Bernstein；De Casteljau 由实现文件覆盖提供）
-  function evalPoint(points, t) {
-    return bernsteinPoint(points, t);
-  }
+  // 点求值：基础库固定使用 Bernstein，多算法切换在实现文件中完成。
 
   // 控制多边形复制（绘制由外层完成）
   function drawPolygonalLine(points, options = {}) {
@@ -182,7 +182,7 @@
   // 核心基础曲线采样：仅单段。不处理 n（多段）与 G1 连续。
   // - 控制点 <4 ：返回一段 (n-1) 次Bezier
   // - 控制点 ≥4：使用前4点返回一段三次Bezier
-  // 多段拼接与 G1 连续 => bezel_implement.js 学生实现
+  // 多段拼接与 G1 连续由实现文件完成
   function drawBezierCurve(points /*, n, color */) {
     const SAMPLES = 100;
     const res = [];
@@ -193,25 +193,16 @@
     const seg = [];
     for (let i = 0; i <= SAMPLES; i++) {
       const t = i / SAMPLES;
-      seg.push(evalPoint(ctrl, t));
+      seg.push(bernsteinPoint(ctrl, t));
     }
     res.push(seg);
     return res;
-  }
-
-  // Expose a small helper to sample arbitrary-degree bezier
-  function sampleBezier(points, samples = 100) {
-    const out = [];
-    for (let i = 0; i <= samples; i++) out.push(evalPoint(points, i / samples));
-    return out;
   }
 
   // Aggregate under a single namespace
   const BezelAPI = {
     drawPolygonalLine,
     drawBezierCurve,
-    sampleBezier,
-    evalPoint,
   };
 
   global.BezelAPI = BezelAPI;
